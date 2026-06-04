@@ -1,893 +1,465 @@
 import reflex as rx
 
-# ─────────────────────────────────────────────
-#  PALETA Y ESTILOS GLOBALES
-# ─────────────────────────────────────────────
-AZUL_MAR   = "#0A4D68"
-TURQUESA   = "#05BFDB"
-ARENA      = "#FFF8EE"
-CORAL      = "#FF6B35"
-GRIS_TEXTO = "#3D3D3D"
-BLANCO     = "#FFFFFF"
+AZUL        = "#1565C0"
+AZUL_MEDIO  = "#1976D2"
+AZUL_CLARO  = "#E3F2FD"
+AZUL_BORDE  = "#90CAF9"
+GRIS        = "#546E7A"
+GRIS_OSCURO = "#263238"
+BLANCO      = "#ffffff"
+ROJO        = "#E53935"
+VERDE       = "#2E7D32"
+FONDO       = "#F5F9FF"
 
-FONT_HEADING = "Playfair Display"
-FONT_BODY    = "DM Sans"
 
-GOOGLE_FONTS = (
-    "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900"
-    "&family=DM+Sans:wght@300;400;500;600&display=swap"
-)
-
-card_style = {
-    "background": BLANCO,
-    "border_radius": "16px",
-    "overflow": "hidden",
-    "box_shadow": "0 4px 24px rgba(10,77,104,0.10)",
-    "transition": "transform 0.25s ease, box_shadow 0.25s ease",
-    "_hover": {
-        "transform": "translateY(-6px)",
-        "box_shadow": "0 12px 36px rgba(10,77,104,0.18)",
+# ── Datos de los tours ───────────────────────
+TOURS = [
+    {
+        "nombre": "Isla Saona 🏝️",
+        "descripcion": "Catamarán, snorkel y almuerzo incluido. ¡Un día increíble!",
+        "precio": "US$50 / persona",
+        "imagen": "/isla_saona.jpg",
+        "href": "/descripcion/saona",
+        "tags": ["saona", "isla", "snorkel", "catamarán", "playa"],
     },
-    "width": "300px",
-}
-
-btn_primary = {
-    "background": CORAL,
-    "color": BLANCO,
-    "font_family": FONT_BODY,
-    "font_weight": "600",
-    "border_radius": "8px",
-    "padding": "0.65em 1.6em",
-    "cursor": "pointer",
-    "transition": "background 0.2s",
-    "_hover": {"background": "#e05522"},
-}
-
-input_style = {
-    "border": f"1.5px solid #C9E8F0",
-    "border_radius": "8px",
-    "padding": "0.7em 1em",
-    "font_family": FONT_BODY,
-    "width": "100%",
-    "background": BLANCO,
-    "_focus": {"border_color": TURQUESA, "outline": "none"},
-}
+    {
+        "nombre": "Los Haitises 🦜",
+        "descripcion": "Tour ecológico por manglares, cuevas y aves del Parque Nacional.",
+        "precio": "US$40 / persona",
+        "imagen": "/los_haitises.jpg",
+        "href": "/descripcion/haitises",
+        "tags": ["haitises", "ecológico", "manglar", "cuevas", "naturaleza"],
+    },
+    {
+        "nombre": "Punta Cana 🌿",
+        "descripcion": "Buggy, tirolesas y cenote en la selva tropical.",
+        "precio": "US$65 / persona",
+        "imagen": "/punta_cana.jpg",
+        "href": "/descripcion/puntacana",
+        "tags": ["punta cana", "aventura", "buggy", "tirolesa", "cenote"],
+    },
+]
 
 
-# ─────────────────────────────────────────────
-#  NAVBAR
-# ─────────────────────────────────────────────
+# ── State ────────────────────────────────────
+class BuscadorState(rx.State):
+    busqueda: str = ""
+
+    def set_busqueda(self, valor: str):
+        self.busqueda = valor.lower()
+
+    @rx.var
+    def tours_filtrados(self) -> list[dict]:
+        if self.busqueda.strip() == "":
+            return TOURS
+        return [
+            t for t in TOURS
+            if self.busqueda in t["nombre"].lower()
+            or self.busqueda in t["descripcion"].lower()
+            or any(self.busqueda in tag for tag in t["tags"])
+        ]
+
+
+# ── Navbar ───────────────────────────────────
 def navbar():
+    return rx.hstack(
+        rx.heading("🌴 TuReserva", size="5", color=BLANCO),
+        rx.spacer(),
+        rx.link("Inicio",   href="/",        color=BLANCO, margin_right="15px"),
+        rx.link("Reservas", href="/reservas", color=BLANCO),
+        width="100%",
+        padding="15px 20px",
+        background=AZUL,
+    )
+
+
+# ── Tarjeta de oferta ────────────────────────
+def oferta_card(tour: dict):
     return rx.box(
-        rx.hstack(
-            # Logo
-            rx.hstack(
-                rx.icon("palmtree", color=TURQUESA, size=28),
-                rx.text(
-                    "Tu",
-                    font_family=FONT_HEADING,
-                    font_size="1.5rem",
-                    font_weight="900",
-                    color=BLANCO,
-                ),
-                rx.text(
-                    "Reserva",
-                    font_family=FONT_HEADING,
-                    font_size="1.5rem",
-                    font_weight="900",
-                    color=TURQUESA,
-                ),
-                spacing="1",
-                align="center",
-            ),
-            rx.spacer(),
-            # Links
-            rx.hstack(
-                rx.link(
-                    "Inicio",
-                    href="/",
-                    color=BLANCO,
-                    font_family=FONT_BODY,
-                    font_weight="500",
-                    _hover={"color": TURQUESA},
-                    transition="color 0.2s",
-                ),
-                rx.link(
-                    "Descripción",
-                    href="/descripcion",
-                    color=BLANCO,
-                    font_family=FONT_BODY,
-                    font_weight="500",
-                    _hover={"color": TURQUESA},
-                    transition="color 0.2s",
-                ),
-                rx.link(
-                    "Reservas",
-                    href="/reservas",
-                    color=BLANCO,
-                    font_family=FONT_BODY,
-                    font_weight="500",
-                    _hover={"color": TURQUESA},
-                    transition="color 0.2s",
-                ),
-                rx.link(
-                    rx.button("Reservar ahora", **btn_primary),
-                    href="/reservas",
-                ),
-                spacing="6",
-                align="center",
-            ),
-            align="center",
-            width="100%",
-            padding_x="2em",
-        ),
-        background=AZUL_MAR,
-        padding_y="1em",
-        position="sticky",
-        top="0",
-        z_index="100",
-        box_shadow="0 2px 12px rgba(0,0,0,0.15)",
-    )
-
-
-# ─────────────────────────────────────────────
-#  TARJETA DE OFERTA
-# ─────────────────────────────────────────────
-def oferta_card(nombre, descripcion, precio, imagen, duracion):
-    return rx.link(
+        rx.image(src=tour["imagen"], width="100%", height="160px", object_fit="cover"),
         rx.box(
-            rx.image(
-                src=imagen,
-                width="100%",
-                height="200px",
-                object_fit="cover",
+            rx.heading(tour["nombre"], size="4", color=GRIS_OSCURO),
+            rx.text(tour["descripcion"], color=GRIS, font_size="14px", margin_y="6px"),
+            rx.text(tour["precio"], color=ROJO, font_size="17px", font_weight="bold"),
+            rx.link(
+                rx.button("Ver más", background=AZUL, color=BLANCO, margin_top="8px"),
+                href=tour["href"],
             ),
-            rx.box(
-                rx.hstack(
-                    rx.badge(
-                        duracion,
-                        color_scheme="blue",
-                        border_radius="20px",
-                        font_size="0.75rem",
-                    ),
-                    rx.spacer(),
-                    rx.text(
-                        precio,
-                        font_family=FONT_HEADING,
-                        font_size="1.2rem",
-                        font_weight="700",
-                        color=CORAL,
-                    ),
-                    width="100%",
-                    margin_bottom="0.5em",
-                ),
-                rx.heading(
-                    nombre,
-                    size="4",
-                    font_family=FONT_HEADING,
-                    color=AZUL_MAR,
-                    margin_bottom="0.3em",
-                ),
-                rx.text(
-                    descripcion,
-                    font_family=FONT_BODY,
-                    font_size="0.9rem",
-                    color=GRIS_TEXTO,
-                    line_height="1.5",
-                ),
-                rx.hstack(
-                    rx.text(
-                        "Ver más →",
-                        color=TURQUESA,
-                        font_family=FONT_BODY,
-                        font_weight="600",
-                        font_size="0.9rem",
-                    ),
-                    margin_top="1em",
-                ),
-                padding="1.2em",
-            ),
-            **card_style,
+            padding="12px",
         ),
-        href="/descripcion",
-        text_decoration="none",
+        border="2px solid " + AZUL_BORDE,
+        border_radius="6px",
+        background=BLANCO,
+        width="270px",
+        overflow="hidden",
+        margin="10px",
     )
 
 
-# ─────────────────────────────────────────────
-#  PÁGINA DE INICIO
-# ─────────────────────────────────────────────
+# ── Página de Inicio ─────────────────────────
 def home():
-    # TODO: API — reemplazar las tarjetas estáticas con datos del endpoint GET /ofertas
     return rx.box(
-        rx.el.link(rel="stylesheet", href=GOOGLE_FONTS),
         navbar(),
-
-        # ── Hero ──────────────────────────────
-        rx.box(
-            rx.box(
+        rx.center(
+            rx.vstack(
+                rx.heading("¡Bienvenido a TuReserva! 🎉", size="7", color=BLANCO),
                 rx.text(
-                    "REPÚBLICA DOMINICANA",
-                    font_family=FONT_BODY,
-                    font_size="0.85rem",
-                    font_weight="600",
-                    letter_spacing="3px",
-                    color=TURQUESA,
-                    margin_bottom="0.5em",
+                    "Las mejores ofertas turísticas de República Dominicana",
+                    color="#BBDEFB",
+                    font_size="16px",
                 ),
-                rx.heading(
-                    "Descubre el paraíso que siempre soñaste",
-                    font_family=FONT_HEADING,
-                    font_size="clamp(2rem, 5vw, 3.5rem)",
-                    font_weight="900",
-                    color=BLANCO,
-                    line_height="1.15",
-                    max_width="650px",
-                    margin_bottom="1em",
-                ),
-                rx.text(
-                    "Tours, excursiones y experiencias únicas. Reserva en minutos y vive momentos inolvidables.",
-                    font_family=FONT_BODY,
-                    color="rgba(255,255,255,0.85)",
-                    font_size="1.05rem",
-                    max_width="500px",
-                    margin_bottom="2em",
-                    line_height="1.6",
-                ),
-                # Buscador
-                rx.box(
-                    rx.hstack(
-                        rx.input(
-                            placeholder="🔍  Buscar destino o actividad...",
-                            **input_style,
-                        ),
-                        rx.button("Buscar", **btn_primary),
-                        spacing="3",
-                        width="100%",
+                rx.hstack(
+                    rx.input(
+                        placeholder="¿A dónde quieres ir?",
+                        width="250px",
+                        background=BLANCO,
+                        on_change=BuscadorState.set_busqueda,
                     ),
-                    background="rgba(255,255,255,0.12)",
-                    backdrop_filter="blur(8px)",
-                    border_radius="12px",
-                    padding="1em",
-                    max_width="560px",
+                    rx.button(
+                        "Buscar 🔍",
+                        background=VERDE,
+                        color=BLANCO,
+                        on_click=BuscadorState.set_busqueda(BuscadorState.busqueda),
+                    ),
+                    margin_top="10px",
                 ),
-                padding="4em 2em 4em 2em",
-                max_width="750px",
+                align="center",
+                spacing="3",
             ),
-            background=f"linear-gradient(135deg, {AZUL_MAR} 0%, #0D7DA6 60%, {TURQUESA} 100%)",
-            min_height="480px",
-            display="flex",
-            align_items="center",
+            width="100%",
+            padding="50px 20px",
+            background=AZUL,
         ),
+        rx.divider(),
+        rx.center(
+            rx.vstack(
+                rx.heading("🏖️ Nuestros Tours", size="6", color=GRIS_OSCURO),
+                rx.text("¡Elige tu aventura favorita!", color=GRIS, margin_bottom="10px"),
 
-        # ── Estadísticas rápidas ──────────────
-        rx.hstack(
-            _stat("500+", "Viajeros felices"),
-            _stat("20+", "Destinos únicos"),
-            _stat("5★", "Calificación promedio"),
-            _stat("24/7", "Atención al cliente"),
-            justify="center",
-            spacing="8",
-            padding="2.5em 2em",
-            background=AZUL_MAR,
-            flex_wrap="wrap",
-        ),
+                # Resultado de búsqueda o mensaje vacío
+                rx.cond(
+                    BuscadorState.tours_filtrados.length() == 0,
+                    rx.box(
+                        rx.text(
+                            "😅 No encontramos tours con ese nombre. ¡Intenta con otra búsqueda!",
+                            color=GRIS,
+                            font_size="15px",
+                        ),
+                        padding="20px",
+                    ),
+                    rx.hstack(
+                        rx.foreach(BuscadorState.tours_filtrados, oferta_card),
+                        flex_wrap="wrap",
+                        justify="center",
+                    ),
+                ),
 
-        # ── Ofertas turísticas ────────────────
-        rx.box(
-            rx.heading(
-                "Ofertas Turísticas",
-                font_family=FONT_HEADING,
-                size="7",
-                color=AZUL_MAR,
-                margin_bottom="0.3em",
+                align="center",
+                width="100%",
             ),
+            width="100%",
+            padding="30px 20px",
+            background=FONDO,
+        ),
+        rx.divider(),
+        rx.center(
+            rx.vstack(
+                rx.heading("📬 Contáctanos", size="5", color=GRIS_OSCURO),
+                rx.box(
+                    rx.text("📧 info@tureserva.com",                         color=GRIS_OSCURO),
+                    rx.text("📞 (809) 555-1234",                              color=GRIS_OSCURO),
+                    rx.text("📍 Higüey, La Altagracia, República Dominicana", color=GRIS_OSCURO),
+                    rx.text("🕐 Lunes a Domingo, 8:00 AM – 8:00 PM",         color=GRIS_OSCURO),
+                    background=BLANCO,
+                    border="1px solid " + AZUL_BORDE,
+                    border_radius="6px",
+                    padding="15px 20px",
+                    max_width="400px",
+                ),
+                align="center",
+                spacing="3",
+            ),
+            width="100%",
+            padding="30px 20px",
+            background=AZUL_CLARO,
+        ),
+        rx.center(
             rx.text(
-                "Experiencias cuidadosamente seleccionadas para ti",
-                font_family=FONT_BODY,
-                color=GRIS_TEXTO,
-                margin_bottom="2em",
-            ),
-            rx.hstack(
-                # TODO: API — estos datos vendrán de GET /api/ofertas
-                oferta_card(
-                    "Isla Saona",
-                    "Excursión de día completo a la paradisíaca Isla Saona, con catamaran, snorkel y almuerzo incluido.",
-                    "US$50",
-                    "/isla_saona.jpg",
-                    "8 horas",
-                ),
-                oferta_card(
-                    "Los Haitises",
-                    "Tour ecológico por el Parque Nacional Los Haitises: manglares, cuevas y aves exóticas.",
-                    "US$40",
-                    "/los_haitises.jpg",
-                    "7 horas",
-                ),
-                oferta_card(
-                    "Punta Cana Aventura",
-                    "Buggy, tirolesas y cenote en la selva tropical. Adrenalina pura con guías expertos.",
-                    "US$65",
-                    "/punta_cana.jpg",
-                    "5 horas",
-                ),
-                spacing="6",
-                flex_wrap="wrap",
-                justify="center",
-            ),
-            padding="3em 2em",
-            background=ARENA,
-            text_align="center",
-        ),
-
-        # ── Contacto ──────────────────────────
-        rx.box(
-            rx.heading(
-                "Contáctanos",
-                font_family=FONT_HEADING,
-                size="6",
+                "© 2025 TuReserva — Hecho con ❤️ en República Dominicana",
                 color=BLANCO,
-                margin_bottom="1.5em",
+                font_size="13px",
             ),
-            rx.hstack(
-                _contacto_item("📧", "Email", "info@tureserva.com"),
-                _contacto_item("📞", "Teléfono", "(809) 555-1234"),
-                _contacto_item("📍", "Ubicación", "Higüey, La Altagracia"),
-                _contacto_item("🕐", "Horario", "Lun–Dom 8am–8pm"),
-                spacing="8",
-                flex_wrap="wrap",
-                justify="center",
-            ),
-            background=AZUL_MAR,
-            padding="3em 2em",
-            text_align="center",
+            width="100%",
+            padding="15px",
+            background=AZUL,
         ),
-
-        # Footer
-        rx.box(
-            rx.text(
-                "© 2025 TuReserva · República Dominicana",
-                font_family=FONT_BODY,
-                font_size="0.85rem",
-                color="rgba(255,255,255,0.5)",
-            ),
-            background="#061E2A",
-            padding="1.2em",
-            text_align="center",
-        ),
-
-        background=ARENA,
-        font_family=FONT_BODY,
+        background=FONDO,
     )
 
 
-def _stat(valor, label):
+# ── Páginas de descripción ───────────────────
+def pagina_descripcion(titulo, subtitulo, imagen, detalles, descripcion_texto, itinerario):
     return rx.box(
-        rx.text(valor, font_family=FONT_HEADING, font_size="1.8rem", font_weight="700", color=TURQUESA),
-        rx.text(label, font_family=FONT_BODY, font_size="0.85rem", color="rgba(255,255,255,0.7)"),
-        text_align="center",
-    )
-
-
-def _contacto_item(icono, titulo, valor):
-    return rx.box(
-        rx.text(icono, font_size="1.8rem", margin_bottom="0.3em"),
-        rx.text(titulo, font_family=FONT_BODY, font_weight="600", color=TURQUESA, font_size="0.85rem"),
-        rx.text(valor, font_family=FONT_BODY, color=BLANCO, font_size="0.95rem"),
-        text_align="center",
-    )
-
-
-# ─────────────────────────────────────────────
-#  PÁGINA DE DESCRIPCIÓN
-# ─────────────────────────────────────────────
-def descripcion():
-    # TODO: API — recibir id del destino y hacer GET /api/ofertas/{id}
-    return rx.box(
-        rx.el.link(rel="stylesheet", href=GOOGLE_FONTS),
         navbar(),
-
-        rx.box(
-            # Encabezado con imagen de fondo
-            rx.box(
-                rx.text(
-                    "EXCURSIÓN DESTACADA",
-                    font_family=FONT_BODY,
-                    font_size="0.8rem",
-                    font_weight="600",
-                    letter_spacing="3px",
-                    color=TURQUESA,
-                    margin_bottom="0.5em",
-                ),
-                rx.heading(
-                    "Isla Saona",          # TODO: API — nombre dinámico
-                    font_family=FONT_HEADING,
-                    font_size="clamp(2.2rem, 4vw, 3rem)",
-                    font_weight="900",
-                    color=BLANCO,
-                    margin_bottom="0.5em",
-                ),
-                rx.hstack(
-                    rx.badge("8 horas", color_scheme="blue"),
-                    rx.badge("Incluye almuerzo", color_scheme="green"),
-                    rx.badge("Transporte incluido", color_scheme="orange"),
-                    spacing="2",
-                    flex_wrap="wrap",
-                ),
-                padding="3em 2em",
-                background=f"linear-gradient(135deg, {AZUL_MAR} 0%, #0D7DA6 100%)",
-            ),
-
-            rx.box(
-                # Imagen principal
+        rx.center(
+            rx.vstack(
+                rx.link("← Volver al inicio", href="/", color=AZUL_MEDIO, font_size="14px"),
+                rx.divider(margin_y="15px"),
+                rx.heading(titulo, size="7", color=GRIS_OSCURO),
+                rx.text(subtitulo, color=GRIS, margin_bottom="15px"),
                 rx.image(
-                    src="/isla_saona.jpg",   # TODO: API — imagen dinámica
+                    src=imagen,
                     width="100%",
-                    max_width="800px",
-                    height="420px",
+                    max_width="650px",
+                    height="300px",
                     object_fit="cover",
-                    border_radius="16px",
-                    box_shadow="0 8px 32px rgba(10,77,104,0.2)",
-                    display="block",
-                    margin="0 auto 2em auto",
+                    border_radius="6px",
+                    border="2px solid " + AZUL_BORDE,
+                    margin_bottom="20px",
                 ),
-
-                # Descripción general
+                rx.heading("¿Qué incluye?", size="5", color=GRIS_OSCURO, margin_bottom="10px"),
                 rx.box(
-                    rx.heading(
-                        "Descripción General",
-                        font_family=FONT_HEADING,
-                        size="5",
-                        color=AZUL_MAR,
-                        margin_bottom="0.8em",
-                    ),
-                    rx.text(
-                        # TODO: API — texto dinámico del destino
-                        "La Isla Saona es una de las joyas naturales de la República Dominicana. "
-                        "Ubicada en el extremo sureste del país, forma parte del Parque Nacional del Este "
-                        "y es conocida por sus playas de arena blanca, aguas cristalinas color turquesa y "
-                        "una flora y fauna únicas. Durante esta excursión de día completo, disfrutarás de "
-                        "un recorrido en catamarán con música y bebidas, snorkel en arrecifes de coral, "
-                        "tiempo libre en la playa y un delicioso almuerzo caribeño.",
-                        font_family=FONT_BODY,
-                        color=GRIS_TEXTO,
-                        line_height="1.8",
-                        font_size="1rem",
-                    ),
-                    margin_bottom="2em",
+                    *[rx.text(d, color=GRIS_OSCURO) for d in detalles],
+                    background=AZUL_CLARO,
+                    border="1px solid " + AZUL_BORDE,
+                    border_radius="6px",
+                    padding="15px",
+                    width="100%",
+                    max_width="500px",
+                    margin_bottom="20px",
                 ),
-
-                # Detalles
+                rx.heading("Descripción", size="5", color=GRIS_OSCURO, margin_bottom="10px"),
+                rx.text(
+                    descripcion_texto,
+                    color=GRIS,
+                    max_width="650px",
+                    line_height="1.7",
+                    margin_bottom="20px",
+                ),
+                rx.heading("Itinerario del día", size="5", color=GRIS_OSCURO, margin_bottom="10px"),
                 rx.box(
-                    rx.heading(
-                        "Detalles del Tour",
-                        font_family=FONT_HEADING,
-                        size="5",
-                        color=AZUL_MAR,
-                        margin_bottom="1em",
-                    ),
-                    rx.hstack(
-                        _detalle_card("⏱️", "Duración", "8 horas"),
-                        _detalle_card("👥", "Grupo", "Máx. 20 personas"),
-                        _detalle_card("🌡️", "Dificultad", "Fácil"),
-                        _detalle_card("💵", "Precio", "US$50 / persona"),
-                        spacing="4",
-                        flex_wrap="wrap",
-                        justify="start",
-                    ),
-                    rx.heading(
-                        "¿Qué incluye?",
-                        font_family=FONT_HEADING,
-                        size="4",
-                        color=AZUL_MAR,
-                        margin_top="1.5em",
-                        margin_bottom="0.8em",
-                    ),
-                    rx.hstack(
-                        rx.vstack(
-                            _check_item("✓  Transporte de ida y vuelta"),
-                            _check_item("✓  Recorrido en catamarán"),
-                            _check_item("✓  Equipo de snorkel"),
-                            align="start",
-                        ),
-                        rx.vstack(
-                            _check_item("✓  Almuerzo caribeño"),
-                            _check_item("✓  Bebidas ilimitadas"),
-                            _check_item("✓  Guía bilingüe"),
-                            align="start",
-                        ),
-                        spacing="8",
-                        flex_wrap="wrap",
-                    ),
-                    background=BLANCO,
-                    border_radius="12px",
-                    padding="1.5em",
-                    box_shadow="0 2px 12px rgba(10,77,104,0.08)",
-                    margin_bottom="2em",
+                    *[rx.text(i, color=GRIS_OSCURO) for i in itinerario],
+                    border="1px solid " + AZUL_BORDE,
+                    border_radius="6px",
+                    padding="15px",
+                    width="100%",
+                    max_width="500px",
+                    margin_bottom="25px",
                 ),
-
-                # Itinerario
-                rx.box(
-                    rx.heading(
-                        "Itinerario",
-                        font_family=FONT_HEADING,
-                        size="5",
-                        color=AZUL_MAR,
-                        margin_bottom="1em",
-                    ),
-                    rx.vstack(
-                        # TODO: API — itinerario dinámico
-                        _itinerario_item("08:00 AM", "Punto de encuentro", "Recogida en hotel y traslado al puerto."),
-                        _itinerario_item("09:30 AM", "Abordaje del catamarán", "Bienvenida con bebidas y música tropical."),
-                        _itinerario_item("10:30 AM", "Parada de snorkel", "30 minutos explorando arrecifes de coral."),
-                        _itinerario_item("12:00 PM", "Llegada a Isla Saona", "Tiempo libre en la playa y almuerzo."),
-                        _itinerario_item("03:00 PM", "Regreso", "Viaje de vuelta en lancha rápida."),
-                        _itinerario_item("04:30 PM", "Llegada al hotel", "Fin del tour."),
-                        align="start",
-                        spacing="0",
-                    ),
-                    background=BLANCO,
-                    border_radius="12px",
-                    padding="1.5em",
-                    box_shadow="0 2px 12px rgba(10,77,104,0.08)",
-                    margin_bottom="2em",
-                ),
-
                 rx.hstack(
+                    rx.link(rx.button("← Volver", variant="outline"), href="/"),
                     rx.link(
-                        rx.button("← Volver", variant="outline", border_color=AZUL_MAR, color=AZUL_MAR, font_family=FONT_BODY),
-                        href="/",
-                    ),
-                    rx.link(
-                        rx.button("Reservar este tour", **btn_primary),
+                        rx.button("¡Reservar ahora! 🎉", background=VERDE, color=BLANCO),
                         href="/reservas",
                     ),
-                    spacing="4",
+                    spacing="3",
                 ),
-
-                padding="2em",
-                max_width="900px",
-                margin="0 auto",
+                align="center",
+                width="100%",
+                max_width="700px",
+                padding="25px 20px",
             ),
-
-            background=ARENA,
-            min_height="100vh",
+            width="100%",
         ),
-        font_family=FONT_BODY,
+        background=FONDO,
     )
 
 
-def _detalle_card(icono, titulo, valor):
-    return rx.box(
-        rx.text(icono, font_size="1.6rem"),
-        rx.text(titulo, font_size="0.75rem", font_weight="600", color=GRIS_TEXTO, letter_spacing="1px"),
-        rx.text(valor, font_family=FONT_HEADING, font_size="1rem", font_weight="700", color=AZUL_MAR),
-        background=ARENA,
-        border_radius="10px",
-        padding="1em 1.3em",
-        text_align="center",
-        border=f"1px solid #C9E8F0",
-        min_width="130px",
+def desc_saona():
+    return pagina_descripcion(
+        titulo="🏝️ Isla Saona",
+        subtitulo="Excursión de día completo",
+        imagen="/isla_saona.jpg",
+        detalles=[
+            "✅ Duración: 8 horas",
+            "✅ Grupo máximo: 20 personas",
+            "✅ Transporte de ida y vuelta",
+            "✅ Almuerzo caribeño",
+            "✅ Equipo de snorkel",
+            "✅ Guía bilingüe (español / inglés)",
+            "💵 Precio: US$50 por persona",
+        ],
+        descripcion_texto=(
+            "La Isla Saona es una de las joyas naturales de la República Dominicana. "
+            "Ubicada en el extremo sureste del país, es conocida por sus playas de arena blanca, "
+            "aguas cristalinas y una flora y fauna únicas. ¡No te lo puedes perder!"
+        ),
+        itinerario=[
+            "🕗 08:00 AM — Recogida en el hotel",
+            "🚢 09:30 AM — Abordaje del catamarán",
+            "🤿 10:30 AM — Parada de snorkel",
+            "🍽️ 12:00 PM — Llegada a Isla Saona y almuerzo",
+            "🏃 03:00 PM — Regreso en lancha rápida",
+            "🏨 04:30 PM — Llegada al hotel",
+        ],
     )
 
 
-def _check_item(texto):
-    return rx.text(texto, font_family=FONT_BODY, color=GRIS_TEXTO, margin_bottom="0.4em")
-
-
-def _itinerario_item(hora, titulo, descripcion_texto):
-    return rx.hstack(
-        rx.box(
-            rx.text(hora, font_family=FONT_BODY, font_size="0.8rem", font_weight="600", color=TURQUESA, white_space="nowrap"),
-            min_width="90px",
+def desc_haitises():
+    return pagina_descripcion(
+        titulo="🦜 Los Haitises",
+        subtitulo="Tour ecológico por el Parque Nacional",
+        imagen="/los_haitises.jpg",
+        detalles=[
+            "✅ Duración: 7 horas",
+            "✅ Grupo máximo: 15 personas",
+            "✅ Transporte de ida y vuelta",
+            "✅ Recorrido en lancha por manglares",
+            "✅ Visita a cuevas con pinturas taínas",
+            "✅ Guía bilingüe (español / inglés)",
+            "💵 Precio: US$40 por persona",
+        ],
+        descripcion_texto=(
+            "El Parque Nacional Los Haitises es un paraíso ecológico al noreste de República Dominicana. "
+            "Sus manglares, cuevas con arte rupestre taíno y una increíble variedad de aves lo hacen "
+            "uno de los destinos más especiales del Caribe. ¡Una experiencia única en la naturaleza!"
         ),
-        rx.box(
-            width="2px",
-            background=f"linear-gradient({TURQUESA}, {AZUL_MAR})",
-            align_self="stretch",
-            margin_x="0.8em",
-            min_height="50px",
-        ),
-        rx.box(
-            rx.text(titulo, font_weight="600", color=AZUL_MAR, font_family=FONT_BODY, margin_bottom="0.2em"),
-            rx.text(descripcion_texto, font_size="0.88rem", color=GRIS_TEXTO, font_family=FONT_BODY),
-            padding_bottom="1em",
-        ),
-        align="start",
-        width="100%",
+        itinerario=[
+            "🕗 07:30 AM — Recogida en el hotel",
+            "🚌 09:00 AM — Llegada al embarcadero",
+            "🚤 09:30 AM — Recorrido por manglares en lancha",
+            "🗿 11:00 AM — Visita a cuevas taínas",
+            "🍽️ 12:30 PM — Almuerzo en restaurante local",
+            "🏨 02:30 PM — Regreso al hotel",
+        ],
     )
 
 
-# ─────────────────────────────────────────────
-#  PÁGINA DE RESERVAS
-# ─────────────────────────────────────────────
+def desc_puntacana():
+    return pagina_descripcion(
+        titulo="🌿 Punta Cana Aventura",
+        subtitulo="Buggy, tirolesas y cenote en la selva",
+        imagen="/punta_cana.jpg",
+        detalles=[
+            "✅ Duración: 6 horas",
+            "✅ Grupo máximo: 25 personas",
+            "✅ Transporte de ida y vuelta",
+            "✅ Recorrido en buggy por la selva",
+            "✅ Tirolesas y cenote natural",
+            "✅ Guías expertos certificados",
+            "💵 Precio: US$65 por persona",
+        ],
+        descripcion_texto=(
+            "Una aventura llena de adrenalina en la selva tropical de Punta Cana. "
+            "Conduce tu propio buggy por caminos de tierra, vuela en tirolesas entre los árboles "
+            "y refréscate en un cenote natural. ¡La experiencia perfecta para los amantes de la aventura!"
+        ),
+        itinerario=[
+            "🕘 09:00 AM — Recogida en el hotel",
+            "🏁 10:00 AM — Bienvenida y briefing de seguridad",
+            "🚙 10:30 AM — Recorrido en buggy por la selva",
+            "🪂 12:00 PM — Tirolesas",
+            "💧 01:00 PM — Baño en cenote natural",
+            "🏨 03:00 PM — Regreso al hotel",
+        ],
+    )
+
+
+# ── Página de Reservas ───────────────────────
 def reservas():
-    # TODO: API — al hacer submit, enviar POST /api/reservas con los datos del formulario
     return rx.box(
-        rx.el.link(rel="stylesheet", href=GOOGLE_FONTS),
         navbar(),
-
-        # Header
-        rx.box(
-            rx.text(
-                "RESERVA TU EXPERIENCIA",
-                font_family=FONT_BODY,
-                font_size="0.8rem",
-                font_weight="600",
-                letter_spacing="3px",
-                color=TURQUESA,
-                margin_bottom="0.5em",
-            ),
-            rx.heading(
-                "Completa tu reserva",
-                font_family=FONT_HEADING,
-                font_size="2.5rem",
-                font_weight="900",
-                color=BLANCO,
-            ),
-            rx.text(
-                "Confirma los detalles y asegura tu lugar en minutos.",
-                font_family=FONT_BODY,
-                color="rgba(255,255,255,0.75)",
-                margin_top="0.5em",
-            ),
-            background=f"linear-gradient(135deg, {AZUL_MAR} 0%, #0D7DA6 100%)",
-            padding="2.5em 2em",
-        ),
-
-        rx.box(
-            rx.hstack(
-                # ── Formulario principal ──────────────────────
-                rx.box(
-
-                    # Datos de contacto
-                    _form_section(
-                        "1",
-                        "Datos de Contacto",
-                        rx.vstack(
-                            _form_field("Nombre completo *", rx.input(placeholder="Ej. María García", **input_style)),
-                            _form_field("Correo electrónico *", rx.input(placeholder="ejemplo@correo.com", type="email", **input_style)),
-                            _form_field("Teléfono / WhatsApp *", rx.input(placeholder="(809) 000-0000", type="tel", **input_style)),
-                            _form_field("Nacionalidad", rx.input(placeholder="Dominicana", **input_style)),
-                            spacing="4",
-                            width="100%",
-                        ),
-                    ),
-
-                    # Detalles de la actividad
-                    _form_section(
-                        "2",
-                        "Detalles de la Actividad",
-                        rx.vstack(
-                            _form_field(
-                                "Tour seleccionado *",
-                                rx.select(
-                                    # TODO: API — poblar con GET /api/ofertas
-                                    ["Isla Saona – US$50", "Los Haitises – US$40", "Punta Cana Aventura – US$65"],
-                                    placeholder="Selecciona un tour...",
-                                    **input_style,
-                                ),
-                            ),
-                            rx.hstack(
-                                _form_field(
-                                    "Fecha *",
-                                    rx.input(type="date", **input_style),
-                                    flex="1",
-                                ),
-                                _form_field(
-                                    "N.° de personas *",
-                                    rx.input(placeholder="1", type="number", min="1", max="20", **input_style),
-                                    flex="1",
-                                ),
-                                spacing="4",
-                                width="100%",
-                            ),
-                            _form_field(
-                                "Solicitudes especiales",
-                                rx.text_area(
-                                    placeholder="Alergias, necesidades especiales, celebraciones...",
-                                    rows="3",
-                                    **{**input_style, "resize": "vertical"},
-                                ),
-                            ),
-                            spacing="4",
-                            width="100%",
-                        ),
-                    ),
-
-                    # Pago
-                    _form_section(
-                        "3",
-                        "Información de Pago",
-                        rx.vstack(
-                            rx.text(
-                                "Selecciona tu método de pago preferido:",
-                                font_family=FONT_BODY,
-                                font_size="0.9rem",
-                                color=GRIS_TEXTO,
-                                margin_bottom="0.5em",
-                            ),
-                            rx.hstack(
-                                _pago_opcion("💳", "Tarjeta de crédito / débito"),
-                                _pago_opcion("📱", "Transferencia bancaria"),
-                                _pago_opcion("💵", "Efectivo (en destino)"),
-                                spacing="3",
-                                flex_wrap="wrap",
-                            ),
-                            rx.box(
-                                rx.text(
-                                    "🔒  Tus datos están protegidos con cifrado SSL.",
-                                    font_family=FONT_BODY,
-                                    font_size="0.85rem",
-                                    color=GRIS_TEXTO,
-                                ),
-                                background="#E8F8F5",
-                                border_radius="8px",
-                                padding="0.8em 1em",
-                                border_left=f"4px solid {TURQUESA}",
-                                width="100%",
-                                margin_top="0.5em",
-                            ),
-                            spacing="3",
-                            width="100%",
-                        ),
-                    ),
-
-                    rx.button(
-                        "Confirmar Reserva →",
-                        width="100%",
-                        padding_y="1em",
-                        font_size="1rem",
-                        **btn_primary,
-                        # TODO: API — on_click conectar con POST /api/reservas
-                    ),
-                    rx.text(
-                        "Al reservar aceptas nuestros términos y condiciones. Recibirás una confirmación por email.",
-                        font_family=FONT_BODY,
-                        font_size="0.8rem",
-                        color=GRIS_TEXTO,
-                        text_align="center",
-                        margin_top="0.8em",
-                    ),
-
-                    flex="2",
-                    min_width="300px",
+        rx.center(
+            rx.vstack(
+                rx.heading("📋 Formulario de Reserva", size="6", color=GRIS_OSCURO),
+                rx.text(
+                    "¡Llena todos los campos para asegurar tu lugar! 😊",
+                    color=GRIS,
+                    margin_bottom="20px",
                 ),
-
-                # ── Panel resumen ─────────────────────────────
                 rx.box(
-                    rx.heading(
-                        "Resumen del Tour",
-                        font_family=FONT_HEADING,
-                        size="4",
-                        color=AZUL_MAR,
-                        margin_bottom="1em",
-                    ),
-                    rx.image(
-                        src="/isla_saona.jpg",   # TODO: API — imagen dinámica según tour
-                        width="100%",
-                        height="160px",
-                        object_fit="cover",
-                        border_radius="10px",
-                        margin_bottom="1em",
-                    ),
-                    # TODO: API — mostrar detalles dinámicos según tour seleccionado
-                    _resumen_row("🏝️  Tour", "Isla Saona"),
-                    _resumen_row("⏱️  Duración", "8 horas"),
-                    _resumen_row("👥  Personas", "—"),
-                    _resumen_row("📅  Fecha", "—"),
-                    rx.divider(margin_y="1em", border_color="#C9E8F0"),
-                    _resumen_row("💵  Precio por persona", "US$50"),
-                    _resumen_row("🧮  Total estimado", "US$50", bold=True, color=CORAL),
-                    rx.box(
-                        rx.text("¿Preguntas?", font_weight="600", font_family=FONT_BODY, color=AZUL_MAR),
-                        rx.text("📞 (809) 555-1234", font_family=FONT_BODY, font_size="0.9rem", color=GRIS_TEXTO),
-                        rx.text("📧 info@tureserva.com", font_family=FONT_BODY, font_size="0.9rem", color=GRIS_TEXTO),
-                        background=ARENA,
-                        border_radius="8px",
-                        padding="1em",
-                        margin_top="1.2em",
-                    ),
-                    background=BLANCO,
-                    border_radius="14px",
-                    padding="1.5em",
-                    box_shadow="0 4px 20px rgba(10,77,104,0.1)",
-                    flex="1",
-                    min_width="250px",
-                    align_self="start",
-                    position="sticky",
-                    top="80px",
+                    rx.heading("👤 Tus datos", size="5", color=GRIS_OSCURO, margin_bottom="12px"),
+                    rx.text("Nombre completo *",     color=GRIS_OSCURO),
+                    rx.input(placeholder="Ej: María García",   width="100%", margin_bottom="12px"),
+                    rx.text("Correo electrónico *",  color=GRIS_OSCURO),
+                    rx.input(placeholder="ejemplo@correo.com", type="email", width="100%", margin_bottom="12px"),
+                    rx.text("Teléfono / WhatsApp *", color=GRIS_OSCURO),
+                    rx.input(placeholder="(809) 000-0000",     type="tel",   width="100%", margin_bottom="12px"),
+                    rx.text("Nacionalidad",          color=GRIS_OSCURO),
+                    rx.input(placeholder="Ej: Dominicana",     width="100%"),
+                    border="1px solid " + AZUL_BORDE,
+                    border_radius="6px",
+                    background=AZUL_CLARO,
+                    padding="15px",
+                    width="100%",
+                    max_width="520px",
+                    margin_bottom="20px",
                 ),
-
-                spacing="6",
-                align="start",
-                flex_wrap="wrap",
+                rx.box(
+                    rx.heading("🏖️ Detalles del tour", size="5", color=GRIS_OSCURO, margin_bottom="12px"),
+                    rx.text("Tour que quieres reservar *", color=GRIS_OSCURO),
+                    rx.select(
+                        ["Isla Saona – US$50", "Los Haitises – US$40", "Punta Cana Aventura – US$65"],
+                        placeholder="-- Elige un tour --",
+                        width="100%",
+                        margin_bottom="12px",
+                    ),
+                    rx.text("Fecha del tour *",            color=GRIS_OSCURO),
+                    rx.input(type="date", width="100%",    margin_bottom="12px"),
+                    rx.text("¿Cuántas personas van? *",    color=GRIS_OSCURO),
+                    rx.input(placeholder="1", type="number", width="100%", margin_bottom="12px"),
+                    rx.text("¿Alguna solicitud especial?", color=GRIS_OSCURO),
+                    rx.text_area(
+                        placeholder="Alergias, cumpleaños, necesidades especiales...",
+                        rows="3",
+                        width="100%",
+                    ),
+                    border="1px solid " + AZUL_BORDE,
+                    border_radius="6px",
+                    background=AZUL_CLARO,
+                    padding="15px",
+                    width="100%",
+                    max_width="520px",
+                    margin_bottom="20px",
+                ),
+                rx.box(
+                    rx.heading("💳 Método de pago", size="5", color=GRIS_OSCURO, margin_bottom="12px"),
+                    rx.text("Selecciona cómo quieres pagar:", color=GRIS_OSCURO, margin_bottom="8px"),
+                    rx.vstack(
+                        rx.hstack(rx.text("💳"), rx.text("Tarjeta de crédito / débito", color=GRIS_OSCURO), spacing="2"),
+                        rx.hstack(rx.text("📱"), rx.text("Transferencia bancaria",       color=GRIS_OSCURO), spacing="2"),
+                        rx.hstack(rx.text("💵"), rx.text("Efectivo (pago en destino)",   color=GRIS_OSCURO), spacing="2"),
+                        align="start",
+                        spacing="2",
+                        margin_bottom="12px",
+                    ),
+                    rx.text("🔒 Tus datos están seguros con nosotros.", color=GRIS, font_size="13px"),
+                    border="1px solid " + AZUL_BORDE,
+                    border_radius="6px",
+                    background=AZUL_CLARO,
+                    padding="15px",
+                    width="100%",
+                    max_width="520px",
+                    margin_bottom="25px",
+                ),
+                rx.button(
+                    "✅ Confirmar mi Reserva",
+                    background=VERDE,
+                    color=BLANCO,
+                    padding="10px 25px",
+                    font_size="16px",
+                ),
+                rx.text(
+                    "Al reservar aceptas nuestros términos y condiciones.",
+                    color=GRIS,
+                    font_size="12px",
+                    margin_top="8px",
+                ),
+                align="center",
+                width="100%",
+                max_width="560px",
+                padding="30px 20px",
             ),
-            padding="2em",
-            max_width="1100px",
-            margin="0 auto",
+            width="100%",
         ),
-
-        background=ARENA,
-        font_family=FONT_BODY,
-        padding_bottom="3em",
+        background=FONDO,
     )
 
 
-def _form_section(numero, titulo, contenido):
-    return rx.box(
-        rx.hstack(
-            rx.box(
-                rx.text(numero, color=BLANCO, font_weight="700", font_size="0.9rem"),
-                background=AZUL_MAR,
-                border_radius="50%",
-                width="28px",
-                height="28px",
-                display="flex",
-                align_items="center",
-                justify_content="center",
-            ),
-            rx.heading(titulo, size="4", font_family=FONT_HEADING, color=AZUL_MAR),
-            align="center",
-            spacing="3",
-            margin_bottom="1em",
-        ),
-        contenido,
-        background=BLANCO,
-        border_radius="12px",
-        padding="1.5em",
-        box_shadow="0 2px 12px rgba(10,77,104,0.07)",
-        margin_bottom="1.5em",
-        width="100%",
-    )
-
-
-def _form_field(label, campo, **kwargs):
-    return rx.box(
-        rx.text(label, font_family=FONT_BODY, font_size="0.85rem", font_weight="500", color=GRIS_TEXTO, margin_bottom="0.4em"),
-        campo,
-        width="100%",
-        **kwargs,
-    )
-
-
-def _pago_opcion(icono, texto):
-    return rx.box(
-        rx.text(icono, font_size="1.5rem"),
-        rx.text(texto, font_family=FONT_BODY, font_size="0.8rem", color=GRIS_TEXTO, text_align="center"),
-        border=f"1.5px solid #C9E8F0",
-        border_radius="10px",
-        padding="0.8em",
-        text_align="center",
-        cursor="pointer",
-        transition="all 0.2s",
-        _hover={"border_color": TURQUESA, "background": "#E8F8FC"},
-        min_width="130px",
-    )
-
-
-def _resumen_row(label, valor, bold=False, color=GRIS_TEXTO):
-    return rx.hstack(
-        rx.text(label, font_family=FONT_BODY, font_size="0.88rem", color=GRIS_TEXTO),
-        rx.spacer(),
-        rx.text(
-            valor,
-            font_family=FONT_BODY,
-            font_size="0.88rem",
-            font_weight="700" if bold else "400",
-            color=color,
-        ),
-        width="100%",
-        margin_bottom="0.5em",
-    )
-
-
-# ─────────────────────────────────────────────
-#  APP
-# ─────────────────────────────────────────────
-app = rx.App(
-    stylesheets=[GOOGLE_FONTS],
-)
-app.add_page(home,        route="/")
-app.add_page(descripcion, route="/descripcion")
-app.add_page(reservas,    route="/reservas")
+# ── App ──────────────────────────────────────
+app = rx.App()
+app.add_page(home,           route="/")
+app.add_page(desc_saona,     route="/descripcion/saona")
+app.add_page(desc_haitises,  route="/descripcion/haitises")
+app.add_page(desc_puntacana, route="/descripcion/puntacana")
+app.add_page(reservas,       route="/reservas")

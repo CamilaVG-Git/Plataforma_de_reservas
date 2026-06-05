@@ -245,16 +245,23 @@ def home():
             background=AZUL_CLARO,
         ),
         rx.center(
-            rx.text(
-                "© 2025 TuReserva — Hecho con ❤️ en República Dominicana",
-                color=BLANCO,
-                font_size="13px",
-            ),
-            width="100%",
-            padding="15px",
-            background=AZUL,
+    rx.hstack(
+        rx.text(
+            "© 2025 TuReserva — Hecho con ❤️ en República Dominicana",
+            color=BLANCO,
+            font_size="13px",
         ),
-        background=FONDO,
+        rx.link(
+            rx.text("·", color="#1a3a5c", font_size="13px"),
+            href="/admin",
+            margin_left="8px",
+        ),
+        align="center",
+    ),
+    width="100%",
+    padding="15px",
+    background=AZUL,
+    ),
     )
 
 
@@ -760,6 +767,312 @@ def reservas():
     )
 
 
+# ── State del Admin ──────────────────────────
+class AdminState(rx.State):
+
+    # ── Reservas (simuladas hasta que llegue la BD) ──
+    reservas_lista: list[dict] = [
+        {
+            "nombre": "Juan Pérez",
+            "correo": "juan@correo.com",
+            "telefono": "(809) 111-2222",
+            "tour": "Isla Saona 🏝️",
+            "fecha": "2025-07-15",
+            "personas": "2",
+            "estado": "Pendiente",
+        },
+        {
+            "nombre": "María García",
+            "correo": "maria@correo.com",
+            "telefono": "(809) 333-4444",
+            "tour": "Jarabacoa 🏔️",
+            "fecha": "2025-07-20",
+            "personas": "4",
+            "estado": "Confirmada",
+        },
+    ]
+
+    # ── Tours editables ──
+    tours_admin: list[dict] = [t.copy() for t in TOURS]
+
+    # ── Formulario nuevo tour ──
+    nuevo_nombre: str      = ""
+    nuevo_descripcion: str = ""
+    nuevo_precio: str      = ""
+    nuevo_imagen: str      = ""
+    nuevo_href: str        = ""
+    nuevo_tags: str        = ""
+
+    # ── Tab activa ──
+    tab_activa: str = "reservas"
+
+    def set_tab(self, tab: str):
+        self.tab_activa = tab
+
+    def set_nuevo_nombre(self, v: str):      self.nuevo_nombre = v
+    def set_nuevo_descripcion(self, v: str): self.nuevo_descripcion = v
+    def set_nuevo_precio(self, v: str):      self.nuevo_precio = v
+    def set_nuevo_imagen(self, v: str):      self.nuevo_imagen = v
+    def set_nuevo_href(self, v: str):        self.nuevo_href = v
+    def set_nuevo_tags(self, v: str):        self.nuevo_tags = v
+
+    def agregar_tour(self):
+        if self.nuevo_nombre.strip() == "":
+            return
+        nuevo = {
+            "nombre":      self.nuevo_nombre,
+            "descripcion": self.nuevo_descripcion,
+            "precio":      self.nuevo_precio,
+            "imagen":      self.nuevo_imagen if self.nuevo_imagen else "/placeholder.jpg",
+            "href":        self.nuevo_href if self.nuevo_href else "/descripcion/nuevo",
+            "tags":        [t.strip() for t in self.nuevo_tags.split(",")],
+        }
+        self.tours_admin = self.tours_admin + [nuevo]
+        # Limpiar formulario
+        self.nuevo_nombre      = ""
+        self.nuevo_descripcion = ""
+        self.nuevo_precio      = ""
+        self.nuevo_imagen      = ""
+        self.nuevo_href        = ""
+        self.nuevo_tags        = ""
+
+    def eliminar_tour(self, nombre: str):
+        self.tours_admin = [t for t in self.tours_admin if t["nombre"] != nombre]
+
+    def cambiar_estado(self, nombre: str):
+        def toggle(r):
+            if r["nombre"] == nombre:
+                r = r.copy()
+                r["estado"] = "Confirmada" if r["estado"] == "Pendiente" else "Pendiente"
+            return r
+        self.reservas_lista = [toggle(r) for r in self.reservas_lista]
+
+
+# ── Fila de reserva ──────────────────────────
+def fila_reserva(reserva: dict):
+    return rx.box(
+        rx.hstack(
+            rx.vstack(
+                rx.text(reserva["nombre"],   font_weight="bold", color=GRIS_OSCURO),
+                rx.text(reserva["correo"],   font_size="13px",   color=GRIS),
+                rx.text(reserva["telefono"], font_size="13px",   color=GRIS),
+                align="start",
+                spacing="1",
+                width="200px",
+            ),
+            rx.vstack(
+                rx.text(reserva["tour"], font_weight="bold", color=AZUL),
+                rx.text("📅 ", reserva["fecha"],                    font_size="13px", color=GRIS_OSCURO),
+                rx.text("👥 ", reserva["personas"], " personas",    font_size="13px", color=GRIS_OSCURO),
+                align="start",
+                spacing="1",
+                width="220px",
+            ),
+            rx.spacer(),
+            rx.vstack(
+                rx.box(
+                    rx.text(
+                        reserva["estado"],
+                        font_size="12px",
+                        font_weight="bold",
+                        color=rx.cond(reserva["estado"] == "Confirmada", VERDE, ROJO),
+                    ),
+                    background=rx.cond(reserva["estado"] == "Confirmada", "#E8F5E9", "#FFEBEE"),
+                    border_radius="20px",
+                    padding="4px 12px",
+                ),
+                rx.button(
+                    rx.cond(reserva["estado"] == "Confirmada", "↩ Marcar pendiente", "✅ Confirmar"),
+                    on_click=AdminState.cambiar_estado(reserva["nombre"]),
+                    background=rx.cond(reserva["estado"] == "Confirmada", GRIS, VERDE),
+                    color=BLANCO,
+                    font_size="12px",
+                    padding="4px 10px",
+                ),
+                align="end",
+                spacing="2",
+            ),
+            align="center",
+            width="100%",
+        ),
+        border="1px solid " + AZUL_BORDE,
+        border_radius="6px",
+        background=BLANCO,
+        padding="15px",
+        width="100%",
+        margin_bottom="10px",
+    )
+
+
+# ── Fila de tour en admin ────────────────────
+def fila_tour_admin(tour: dict):
+    return rx.hstack(
+        rx.image(src=tour["imagen"], width="60px", height="50px", object_fit="cover", border_radius="4px"),
+        rx.vstack(
+            rx.text(tour["nombre"],      font_weight="bold", color=GRIS_OSCURO, font_size="14px"),
+            rx.text(tour["descripcion"], color=GRIS,         font_size="12px"),
+            align="start",
+            spacing="1",
+        ),
+        rx.spacer(),
+        rx.text(tour["precio"], color=ROJO, font_weight="bold", font_size="14px", min_width="100px"),
+        rx.button(
+            "🗑️ Eliminar",
+            on_click=AdminState.eliminar_tour(tour["nombre"]),
+            background=ROJO,
+            color=BLANCO,
+            font_size="12px",
+            padding="5px 10px",
+        ),
+        border="1px solid " + AZUL_BORDE,
+        border_radius="6px",
+        background=BLANCO,
+        padding="10px 15px",
+        width="100%",
+        align="center",
+        margin_bottom="8px",
+    )
+
+
+# ── Página Admin ─────────────────────────────
+def admin():
+    return rx.box(
+        navbar(),
+
+        # Encabezado
+        rx.box(
+            rx.heading("🔧 Panel de Administración", size="6", color=BLANCO),
+            rx.text("Gestiona reservas y tours desde aquí.", color="#BBDEFB", font_size="14px"),
+            background=AZUL,
+            padding="20px 25px",
+        ),
+
+        rx.box(
+
+            # Tabs
+            rx.hstack(
+                rx.button(
+                    "📋 Reservas",
+                    on_click=AdminState.set_tab("reservas"),
+                    background=rx.cond(AdminState.tab_activa == "reservas", AZUL, "#E0E0E0"),
+                    color=rx.cond(AdminState.tab_activa == "reservas", BLANCO, GRIS_OSCURO),
+                    padding="8px 20px",
+                ),
+                rx.button(
+                    "🏖️ Tours",
+                    on_click=AdminState.set_tab("tours"),
+                    background=rx.cond(AdminState.tab_activa == "tours", AZUL, "#E0E0E0"),
+                    color=rx.cond(AdminState.tab_activa == "tours", BLANCO, GRIS_OSCURO),
+                    padding="8px 20px",
+                ),
+                spacing="2",
+                margin_bottom="20px",
+            ),
+
+            # ── Tab Reservas ──
+            rx.cond(
+                AdminState.tab_activa == "reservas",
+                rx.vstack(
+                    rx.hstack(
+                        rx.heading("Reservas recibidas", size="5", color=GRIS_OSCURO),
+                        rx.spacer(),
+                        rx.text(
+                            AdminState.reservas_lista.length().to_string() + " reservas en total",
+                            color=GRIS,
+                            font_size="13px",
+                        ),
+                        width="100%",
+                        margin_bottom="15px",
+                    ),
+                    rx.cond(
+                        AdminState.reservas_lista.length() == 0,
+                        rx.text("😴 No hay reservas todavía.", color=GRIS, font_size="14px"),
+                        rx.foreach(AdminState.reservas_lista, fila_reserva),
+                    ),
+                    align="start",
+                    width="100%",
+                ),
+
+                # ── Tab Tours ──
+                rx.vstack(
+                    rx.heading("Tours activos", size="5", color=GRIS_OSCURO, margin_bottom="15px"),
+                    rx.foreach(AdminState.tours_admin, fila_tour_admin),
+
+                    rx.divider(margin_y="20px"),
+
+                    # Formulario agregar tour
+                    rx.heading("➕ Agregar nuevo tour", size="5", color=GRIS_OSCURO, margin_bottom="12px"),
+                    rx.box(
+                        rx.text("Nombre del tour *", color=GRIS_OSCURO),
+                        rx.input(
+                            placeholder="Ej: Bahía de las Águilas 🌊",
+                            value=AdminState.nuevo_nombre,
+                            on_change=AdminState.set_nuevo_nombre,
+                            width="100%", margin_bottom="10px",
+                        ),
+                        rx.text("Descripción corta *", color=GRIS_OSCURO),
+                        rx.input(
+                            placeholder="Descripción para la tarjeta...",
+                            value=AdminState.nuevo_descripcion,
+                            on_change=AdminState.set_nuevo_descripcion,
+                            width="100%", margin_bottom="10px",
+                        ),
+                        rx.text("Precio *", color=GRIS_OSCURO),
+                        rx.input(
+                            placeholder="Ej: US$45 / persona",
+                            value=AdminState.nuevo_precio,
+                            on_change=AdminState.set_nuevo_precio,
+                            width="100%", margin_bottom="10px",
+                        ),
+                        rx.text("Nombre de la imagen", color=GRIS_OSCURO),
+                        rx.input(
+                            placeholder="Ej: /bahia_aguilas.jpg",
+                            value=AdminState.nuevo_imagen,
+                            on_change=AdminState.set_nuevo_imagen,
+                            width="100%", margin_bottom="10px",
+                        ),
+                        rx.text("Ruta de la página", color=GRIS_OSCURO),
+                        rx.input(
+                            placeholder="Ej: /descripcion/bahiaaguilas",
+                            value=AdminState.nuevo_href,
+                            on_change=AdminState.set_nuevo_href,
+                            width="100%", margin_bottom="10px",
+                        ),
+                        rx.text("Tags de búsqueda (separados por coma)", color=GRIS_OSCURO),
+                        rx.input(
+                            placeholder="Ej: playa, sur, naturaleza, aventura",
+                            value=AdminState.nuevo_tags,
+                            on_change=AdminState.set_nuevo_tags,
+                            width="100%", margin_bottom="15px",
+                        ),
+                        rx.button(
+                            "➕ Agregar tour",
+                            on_click=AdminState.agregar_tour,
+                            background=VERDE,
+                            color=BLANCO,
+                            padding="8px 20px",
+                            font_size="14px",
+                        ),
+                        border="1px solid " + AZUL_BORDE,
+                        border_radius="6px",
+                        background=AZUL_CLARO,
+                        padding="20px",
+                        width="100%",
+                        max_width="560px",
+                    ),
+                    align="start",
+                    width="100%",
+                ),
+            ),
+
+            padding="25px",
+            max_width="900px",
+            margin="0 auto",
+        ),
+        background=FONDO,
+    )
+
+
 # ── App ──────────────────────────────────────
 app = rx.App()
 app.add_page(home,                route="/")
@@ -775,3 +1088,4 @@ app.add_page(desc_samana,         route="/descripcion/samana")
 app.add_page(desc_jarabacoa,      route="/descripcion/jarabacoa")
 app.add_page(desc_lagoenriquillo, route="/descripcion/lagoenriquillo")
 app.add_page(reservas,            route="/reservas")
+app.add_page(admin,               route="/admin")

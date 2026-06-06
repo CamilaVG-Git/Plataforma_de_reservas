@@ -196,13 +196,13 @@ CamilaVG-Git/
 
 ### Página de Reservas
 
-![Reservas](capturas/Reservas.jpeg)
+![Reservas](Capturas/Reservas.jpeg)
 
 ### Panel Administrativo
 
-![Admin-Reservas](capturas/Admin-Reservas.jpeg)
-![Admin-tours](capturas/Admin-tours.jpeg)
-![Admin-agregar](capturas/Admin-agregar.jpeg)
+![Admin-Reservas](Capturas/Admin-Reservas.jpeg)
+![Admin-tours](Capturas/Admin-tours.jpeg)
+![Admin-agregar](Capturas/Admin-agregar.jpeg)
 
 ---
 

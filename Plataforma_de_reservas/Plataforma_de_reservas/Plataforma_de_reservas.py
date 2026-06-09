@@ -12,8 +12,8 @@ VERDE       = "#2E7D32"
 FONDO       = "#F5F9FF"
 
 
-# ── Datos de los tours ───────────────────────
-TOURS = [
+# ── Datos iniciales ──────────────────────────
+TOURS_INICIALES = [
     {
         "nombre": "Isla Saona 🏝️",
         "descripcion": "Catamarán, snorkel y almuerzo incluido. ¡Un día increíble!",
@@ -104,10 +104,65 @@ TOURS = [
     },
 ]
 
+RESERVAS_INICIALES = [
+    {
+        "nombre": "Juan Pérez",
+        "correo": "juan@correo.com",
+        "telefono": "(809) 111-2222",
+        "tour": "Isla Saona 🏝️",
+        "fecha": "2025-07-15",
+        "personas": "2",
+        "estado": "Pendiente",
+    },
+    {
+        "nombre": "María García",
+        "correo": "maria@correo.com",
+        "telefono": "(809) 333-4444",
+        "tour": "Jarabacoa 🏔️",
+        "fecha": "2025-07-20",
+        "personas": "4",
+        "estado": "Confirmada",
+    },
+]
 
-# ── State ────────────────────────────────────
-class BuscadorState(rx.State):
+
+# ════════════════════════════════════════════
+#  STATE UNIFICADO — evita el cross-state
+#  que causaba "dispatch is not a function"
+# ════════════════════════════════════════════
+class State(rx.State):
+
+    # ── Tours ────────────────────────────────
+    tours: list[dict] = [t.copy() for t in TOURS_INICIALES]
     busqueda: str = ""
+
+    # ── Reservas (formulario público) ────────
+    metodo_pago: str = "Tarjeta de crédito / débito 💳"
+
+    # ── Admin — reservas ─────────────────────
+    reservas_lista: list[dict] = [r.copy() for r in RESERVAS_INICIALES]
+
+    # ── Admin — nuevo tour ───────────────────
+    nuevo_nombre: str      = ""
+    nuevo_descripcion: str = ""
+    nuevo_precio: str      = ""
+    nuevo_imagen: str      = ""
+    nuevo_href: str        = ""
+    nuevo_tags: str        = ""
+
+    # ── Admin — edición inline ───────────────
+    editando_nombre: str  = ""
+    edit_nombre: str      = ""
+    edit_descripcion: str = ""
+    edit_precio: str      = ""
+    edit_imagen: str      = ""
+    edit_href: str        = ""
+    edit_tags: str        = ""
+
+    # ── Admin — tab activa ───────────────────
+    tab_activa: str = "reservas"
+
+    # ════════════ TOURS ═════════════════════
 
     def set_busqueda(self, valor: str):
         self.busqueda = valor.lower()
@@ -115,16 +170,119 @@ class BuscadorState(rx.State):
     @rx.var
     def tours_filtrados(self) -> list[dict]:
         if self.busqueda.strip() == "":
-            return TOURS
+            return self.tours
         return [
-            t for t in TOURS
+            t for t in self.tours
             if self.busqueda in t["nombre"].lower()
             or self.busqueda in t["descripcion"].lower()
             or any(self.busqueda in tag for tag in t["tags"])
         ]
 
+    def _agregar_tour(self, nuevo: dict):
+        self.tours = self.tours + [nuevo]
 
-# ── Navbar ───────────────────────────────────
+    def _eliminar_tour(self, nombre: str):
+        self.tours = [t for t in self.tours if t["nombre"] != nombre]
+
+    def _actualizar_tour(self, nombre_original: str, actualizado: dict):
+        self.tours = [
+            actualizado if t["nombre"] == nombre_original else t
+            for t in self.tours
+        ]
+
+    # ════════════ RESERVAS (público) ════════
+
+    def set_metodo_pago(self, valor: str):
+        self.metodo_pago = valor
+
+    # ════════════ ADMIN — tabs ══════════════
+
+    def set_tab(self, tab: str):
+        self.tab_activa = tab
+
+    # ════════════ ADMIN — nuevo tour ════════
+
+    def set_nuevo_nombre(self, v: str):      self.nuevo_nombre = v
+    def set_nuevo_descripcion(self, v: str): self.nuevo_descripcion = v
+    def set_nuevo_precio(self, v: str):      self.nuevo_precio = v
+    def set_nuevo_imagen(self, v: str):      self.nuevo_imagen = v
+    def set_nuevo_href(self, v: str):        self.nuevo_href = v
+    def set_nuevo_tags(self, v: str):        self.nuevo_tags = v
+
+    def agregar_tour(self):
+        if self.nuevo_nombre.strip() == "":
+            return
+        nuevo = {
+            "nombre":      self.nuevo_nombre,
+            "descripcion": self.nuevo_descripcion,
+            "precio":      self.nuevo_precio,
+            "imagen":      self.nuevo_imagen if self.nuevo_imagen else "/placeholder.jpg",
+            "href":        self.nuevo_href if self.nuevo_href else "/descripcion/nuevo",
+            "tags":        [t.strip() for t in self.nuevo_tags.split(",")],
+        }
+        self._agregar_tour(nuevo)
+        self.nuevo_nombre      = ""
+        self.nuevo_descripcion = ""
+        self.nuevo_precio      = ""
+        self.nuevo_imagen      = ""
+        self.nuevo_href        = ""
+        self.nuevo_tags        = ""
+
+    def eliminar_tour(self, nombre: str):
+        self._eliminar_tour(nombre)
+
+    # ════════════ ADMIN — edición ════════════
+
+    def set_edit_nombre(self, v: str):      self.edit_nombre = v
+    def set_edit_descripcion(self, v: str): self.edit_descripcion = v
+    def set_edit_precio(self, v: str):      self.edit_precio = v
+    def set_edit_imagen(self, v: str):      self.edit_imagen = v
+    def set_edit_href(self, v: str):        self.edit_href = v
+    def set_edit_tags(self, v: str):        self.edit_tags = v
+
+    def iniciar_edicion(self, nombre: str):
+        tour = next((t for t in self.tours if t["nombre"] == nombre), None)
+        if tour:
+            self.editando_nombre  = nombre
+            self.edit_nombre      = tour["nombre"]
+            self.edit_descripcion = tour["descripcion"]
+            self.edit_precio      = tour["precio"]
+            self.edit_imagen      = tour["imagen"]
+            self.edit_href        = tour["href"]
+            self.edit_tags        = ", ".join(tour["tags"])
+
+    def cancelar_edicion(self):
+        self.editando_nombre = ""
+
+    def guardar_edicion(self):
+        if self.editando_nombre.strip() == "":
+            return
+        actualizado = {
+            "nombre":      self.edit_nombre,
+            "descripcion": self.edit_descripcion,
+            "precio":      self.edit_precio,
+            "imagen":      self.edit_imagen if self.edit_imagen else "/placeholder.jpg",
+            "href":        self.edit_href if self.edit_href else "/descripcion/nuevo",
+            "tags":        [t.strip() for t in self.edit_tags.split(",")],
+        }
+        self._actualizar_tour(self.editando_nombre, actualizado)
+        self.editando_nombre = ""
+
+    # ════════════ ADMIN — reservas ═══════════
+
+    def cambiar_estado(self, nombre: str):
+        def toggle(r):
+            if r["nombre"] == nombre:
+                r = r.copy()
+                r["estado"] = "Confirmada" if r["estado"] == "Pendiente" else "Pendiente"
+            return r
+        self.reservas_lista = [toggle(r) for r in self.reservas_lista]
+
+
+# ════════════════════════════════════════════
+#  COMPONENTES UI
+# ════════════════════════════════════════════
+
 def navbar():
     return rx.hstack(
         rx.heading("🌴 TuReserva", size="5", color=BLANCO),
@@ -137,7 +295,6 @@ def navbar():
     )
 
 
-# ── Tarjeta de oferta ────────────────────────
 def oferta_card(tour: dict):
     return rx.box(
         rx.image(src=tour["imagen"], width="100%", height="160px", object_fit="cover"),
@@ -177,13 +334,13 @@ def home():
                         placeholder="¿A dónde quieres ir?",
                         width="250px",
                         background=BLANCO,
-                        on_change=BuscadorState.set_busqueda,
+                        on_change=State.set_busqueda,
                     ),
                     rx.button(
                         "Buscar 🔍",
                         background=VERDE,
                         color=BLANCO,
-                        on_click=BuscadorState.set_busqueda(BuscadorState.busqueda),
+                        on_click=State.set_busqueda(State.busqueda),
                     ),
                     margin_top="10px",
                 ),
@@ -200,17 +357,17 @@ def home():
                 rx.heading("🏖️ Nuestros Tours", size="6", color=GRIS_OSCURO),
                 rx.text("¡Elige tu aventura favorita!", color=GRIS, margin_bottom="10px"),
                 rx.cond(
-                    BuscadorState.tours_filtrados.length() == 0,
+                    State.tours_filtrados.length() == 0,
                     rx.box(
                         rx.text(
-                            "😅 No encontramos tours con ese nombre. ¡Intenta con otra búsqueda!",
+                            "😅 No encontramos tours disponibles.",
                             color=GRIS,
                             font_size="15px",
                         ),
                         padding="20px",
                     ),
                     rx.hstack(
-                        rx.foreach(BuscadorState.tours_filtrados, oferta_card),
+                        rx.foreach(State.tours_filtrados, oferta_card),
                         flex_wrap="wrap",
                         justify="center",
                     ),
@@ -245,23 +402,23 @@ def home():
             background=AZUL_CLARO,
         ),
         rx.center(
-    rx.hstack(
-        rx.text(
-            "© 2025 TuReserva — Hecho con ❤️ en República Dominicana",
-            color=BLANCO,
-            font_size="13px",
+            rx.hstack(
+                rx.text(
+                    "© 2025 TuReserva — Hecho con ❤️ en República Dominicana",
+                    color=BLANCO,
+                    font_size="13px",
+                ),
+                rx.link(
+                    rx.text("·", color="#1a3a5c", font_size="13px"),
+                    href="/admin",
+                    margin_left="8px",
+                ),
+                align="center",
+            ),
+            width="100%",
+            padding="15px",
+            background=AZUL,
         ),
-        rx.link(
-            rx.text("·", color="#1a3a5c", font_size="13px"),
-            href="/admin",
-            margin_left="8px",
-        ),
-        align="center",
-    ),
-    width="100%",
-    padding="15px",
-    background=AZUL,
-    ),
     )
 
 
@@ -333,7 +490,7 @@ def pagina_descripcion(titulo, subtitulo, imagen, detalles, descripcion_texto, i
     )
 
 
-# ── Páginas individuales ─────────────────────
+# ── Páginas individuales de descripción ──────
 def desc_saona():
     return pagina_descripcion(
         titulo="🏝️ Isla Saona",
@@ -700,7 +857,7 @@ def reservas():
                     rx.heading("🏖️ Detalles del tour", size="5", color=GRIS_OSCURO, margin_bottom="12px"),
                     rx.text("Tour que quieres reservar *", color=GRIS_OSCURO),
                     rx.select(
-                        [t["nombre"] + " — " + t["precio"] for t in TOURS],
+                        [t["nombre"] + " — " + t["precio"] for t in TOURS_INICIALES],
                         placeholder="-- Elige un tour --",
                         width="100%",
                         margin_bottom="12px",
@@ -725,13 +882,19 @@ def reservas():
                 ),
                 rx.box(
                     rx.heading("💳 Método de pago", size="5", color=GRIS_OSCURO, margin_bottom="12px"),
-                    rx.text("Selecciona cómo quieres pagar:", color=GRIS_OSCURO, margin_bottom="8px"),
-                    rx.vstack(
-                        rx.hstack(rx.text("💳"), rx.text("Tarjeta de crédito / débito", color=GRIS_OSCURO), spacing="2"),
-                        rx.hstack(rx.text("📱"), rx.text("Transferencia bancaria",       color=GRIS_OSCURO), spacing="2"),
-                        rx.hstack(rx.text("💵"), rx.text("Efectivo (pago en destino)",   color=GRIS_OSCURO), spacing="2"),
-                        align="start",
-                        spacing="2",
+                    rx.text("Selecciona cómo quieres pagar:", color=GRIS_OSCURO, margin_bottom="10px"),
+                    rx.radio_group(
+                        items=[
+                            "Tarjeta de crédito / débito 💳",
+                            "Transferencia bancaria 📱",
+                            "Efectivo (pago en destino) 💵",
+                        ],
+                        value=State.metodo_pago,
+                        on_change=State.set_metodo_pago,
+                        default_value="Tarjeta de crédito / débito 💳",
+                        direction="column",
+                        gap="10px",
+                        color=GRIS_OSCURO,
                         margin_bottom="12px",
                     ),
                     rx.text("🔒 Tus datos están seguros con nosotros.", color=GRIS, font_size="13px"),
@@ -767,88 +930,7 @@ def reservas():
     )
 
 
-# ── State del Admin ──────────────────────────
-class AdminState(rx.State):
-
-    # ── Reservas (simuladas hasta que llegue la BD) ──
-    reservas_lista: list[dict] = [
-        {
-            "nombre": "Juan Pérez",
-            "correo": "juan@correo.com",
-            "telefono": "(809) 111-2222",
-            "tour": "Isla Saona 🏝️",
-            "fecha": "2025-07-15",
-            "personas": "2",
-            "estado": "Pendiente",
-        },
-        {
-            "nombre": "María García",
-            "correo": "maria@correo.com",
-            "telefono": "(809) 333-4444",
-            "tour": "Jarabacoa 🏔️",
-            "fecha": "2025-07-20",
-            "personas": "4",
-            "estado": "Confirmada",
-        },
-    ]
-
-    # ── Tours editables ──
-    tours_admin: list[dict] = [t.copy() for t in TOURS]
-
-    # ── Formulario nuevo tour ──
-    nuevo_nombre: str      = ""
-    nuevo_descripcion: str = ""
-    nuevo_precio: str      = ""
-    nuevo_imagen: str      = ""
-    nuevo_href: str        = ""
-    nuevo_tags: str        = ""
-
-    # ── Tab activa ──
-    tab_activa: str = "reservas"
-
-    def set_tab(self, tab: str):
-        self.tab_activa = tab
-
-    def set_nuevo_nombre(self, v: str):      self.nuevo_nombre = v
-    def set_nuevo_descripcion(self, v: str): self.nuevo_descripcion = v
-    def set_nuevo_precio(self, v: str):      self.nuevo_precio = v
-    def set_nuevo_imagen(self, v: str):      self.nuevo_imagen = v
-    def set_nuevo_href(self, v: str):        self.nuevo_href = v
-    def set_nuevo_tags(self, v: str):        self.nuevo_tags = v
-
-    def agregar_tour(self):
-        if self.nuevo_nombre.strip() == "":
-            return
-        nuevo = {
-            "nombre":      self.nuevo_nombre,
-            "descripcion": self.nuevo_descripcion,
-            "precio":      self.nuevo_precio,
-            "imagen":      self.nuevo_imagen if self.nuevo_imagen else "/placeholder.jpg",
-            "href":        self.nuevo_href if self.nuevo_href else "/descripcion/nuevo",
-            "tags":        [t.strip() for t in self.nuevo_tags.split(",")],
-        }
-        self.tours_admin = self.tours_admin + [nuevo]
-        # Limpiar formulario
-        self.nuevo_nombre      = ""
-        self.nuevo_descripcion = ""
-        self.nuevo_precio      = ""
-        self.nuevo_imagen      = ""
-        self.nuevo_href        = ""
-        self.nuevo_tags        = ""
-
-    def eliminar_tour(self, nombre: str):
-        self.tours_admin = [t for t in self.tours_admin if t["nombre"] != nombre]
-
-    def cambiar_estado(self, nombre: str):
-        def toggle(r):
-            if r["nombre"] == nombre:
-                r = r.copy()
-                r["estado"] = "Confirmada" if r["estado"] == "Pendiente" else "Pendiente"
-            return r
-        self.reservas_lista = [toggle(r) for r in self.reservas_lista]
-
-
-# ── Fila de reserva ──────────────────────────
+# ── Componentes del Admin ────────────────────
 def fila_reserva(reserva: dict):
     return rx.box(
         rx.hstack(
@@ -883,7 +965,7 @@ def fila_reserva(reserva: dict):
                 ),
                 rx.button(
                     rx.cond(reserva["estado"] == "Confirmada", "↩ Marcar pendiente", "✅ Confirmar"),
-                    on_click=AdminState.cambiar_estado(reserva["nombre"]),
+                    on_click=State.cambiar_estado(reserva["nombre"]),
                     background=rx.cond(reserva["estado"] == "Confirmada", GRIS, VERDE),
                     color=BLANCO,
                     font_size="12px",
@@ -904,32 +986,117 @@ def fila_reserva(reserva: dict):
     )
 
 
-# ── Fila de tour en admin ────────────────────
 def fila_tour_admin(tour: dict):
-    return rx.hstack(
-        rx.image(src=tour["imagen"], width="60px", height="50px", object_fit="cover", border_radius="4px"),
+    return rx.box(
         rx.vstack(
-            rx.text(tour["nombre"],      font_weight="bold", color=GRIS_OSCURO, font_size="14px"),
-            rx.text(tour["descripcion"], color=GRIS,         font_size="12px"),
-            align="start",
-            spacing="1",
-        ),
-        rx.spacer(),
-        rx.text(tour["precio"], color=ROJO, font_weight="bold", font_size="14px", min_width="100px"),
-        rx.button(
-            "🗑️ Eliminar",
-            on_click=AdminState.eliminar_tour(tour["nombre"]),
-            background=ROJO,
-            color=BLANCO,
-            font_size="12px",
-            padding="5px 10px",
+            rx.cond(
+                State.editando_nombre != tour["nombre"],
+                # Vista normal
+                rx.hstack(
+                    rx.image(src=tour["imagen"], width="60px", height="50px", object_fit="cover", border_radius="4px"),
+                    rx.vstack(
+                        rx.text(tour["nombre"],      font_weight="bold", color=GRIS_OSCURO, font_size="14px"),
+                        rx.text(tour["descripcion"], color=GRIS,         font_size="12px"),
+                        align="start",
+                        spacing="1",
+                    ),
+                    rx.spacer(),
+                    rx.text(tour["precio"], color=ROJO, font_weight="bold", font_size="14px", min_width="100px"),
+                    rx.hstack(
+                        rx.button(
+                            "✏️ Editar",
+                            on_click=State.iniciar_edicion(tour["nombre"]),
+                            background=AZUL_MEDIO,
+                            color=BLANCO,
+                            font_size="12px",
+                            padding="5px 10px",
+                        ),
+                        rx.button(
+                            "🗑️ Eliminar",
+                            on_click=State.eliminar_tour(tour["nombre"]),
+                            background=ROJO,
+                            color=BLANCO,
+                            font_size="12px",
+                            padding="5px 10px",
+                        ),
+                        spacing="2",
+                    ),
+                    align="center",
+                    width="100%",
+                ),
+                # Formulario de edición inline
+                rx.vstack(
+                    rx.hstack(
+                        rx.text("✏️ Editando: ", color=AZUL, font_weight="bold"),
+                        rx.text(tour["nombre"],   color=AZUL, font_weight="bold"),
+                    ),
+                    rx.text("Nombre", color=GRIS_OSCURO, font_size="13px"),
+                    rx.input(
+                        value=State.edit_nombre,
+                        on_change=State.set_edit_nombre,
+                        width="100%", margin_bottom="8px",
+                    ),
+                    rx.text("Descripción", color=GRIS_OSCURO, font_size="13px"),
+                    rx.input(
+                        value=State.edit_descripcion,
+                        on_change=State.set_edit_descripcion,
+                        width="100%", margin_bottom="8px",
+                    ),
+                    rx.text("Precio", color=GRIS_OSCURO, font_size="13px"),
+                    rx.input(
+                        value=State.edit_precio,
+                        on_change=State.set_edit_precio,
+                        width="100%", margin_bottom="8px",
+                    ),
+                    rx.text("URL de imagen", color=GRIS_OSCURO, font_size="13px"),
+                    rx.input(
+                        value=State.edit_imagen,
+                        on_change=State.set_edit_imagen,
+                        width="100%", margin_bottom="8px",
+                    ),
+                    rx.text("Ruta de la página (href)", color=GRIS_OSCURO, font_size="13px"),
+                    rx.input(
+                        value=State.edit_href,
+                        on_change=State.set_edit_href,
+                        width="100%", margin_bottom="8px",
+                    ),
+                    rx.text("Tags (separados por coma)", color=GRIS_OSCURO, font_size="13px"),
+                    rx.input(
+                        value=State.edit_tags,
+                        on_change=State.set_edit_tags,
+                        width="100%", margin_bottom="12px",
+                    ),
+                    rx.hstack(
+                        rx.button(
+                            "💾 Guardar cambios",
+                            on_click=State.guardar_edicion,
+                            background=VERDE,
+                            color=BLANCO,
+                            font_size="13px",
+                        ),
+                        rx.button(
+                            "✖ Cancelar",
+                            on_click=State.cancelar_edicion,
+                            background=GRIS,
+                            color=BLANCO,
+                            font_size="13px",
+                        ),
+                        spacing="2",
+                    ),
+                    align="start",
+                    width="100%",
+                    background=AZUL_CLARO,
+                    border_radius="6px",
+                    padding="15px",
+                ),
+            ),
+            width="100%",
         ),
         border="1px solid " + AZUL_BORDE,
         border_radius="6px",
         background=BLANCO,
         padding="10px 15px",
         width="100%",
-        align="center",
         margin_bottom="8px",
     )
 
@@ -938,46 +1105,39 @@ def fila_tour_admin(tour: dict):
 def admin():
     return rx.box(
         navbar(),
-
-        # Encabezado
         rx.box(
             rx.heading("🔧 Panel de Administración", size="6", color=BLANCO),
             rx.text("Gestiona reservas y tours desde aquí.", color="#BBDEFB", font_size="14px"),
             background=AZUL,
             padding="20px 25px",
         ),
-
         rx.box(
-
-            # Tabs
             rx.hstack(
                 rx.button(
                     "📋 Reservas",
-                    on_click=AdminState.set_tab("reservas"),
-                    background=rx.cond(AdminState.tab_activa == "reservas", AZUL, "#E0E0E0"),
-                    color=rx.cond(AdminState.tab_activa == "reservas", BLANCO, GRIS_OSCURO),
+                    on_click=State.set_tab("reservas"),
+                    background=rx.cond(State.tab_activa == "reservas", AZUL, "#E0E0E0"),
+                    color=rx.cond(State.tab_activa == "reservas", BLANCO, GRIS_OSCURO),
                     padding="8px 20px",
                 ),
                 rx.button(
                     "🏖️ Tours",
-                    on_click=AdminState.set_tab("tours"),
-                    background=rx.cond(AdminState.tab_activa == "tours", AZUL, "#E0E0E0"),
-                    color=rx.cond(AdminState.tab_activa == "tours", BLANCO, GRIS_OSCURO),
+                    on_click=State.set_tab("tours"),
+                    background=rx.cond(State.tab_activa == "tours", AZUL, "#E0E0E0"),
+                    color=rx.cond(State.tab_activa == "tours", BLANCO, GRIS_OSCURO),
                     padding="8px 20px",
                 ),
                 spacing="2",
                 margin_bottom="20px",
             ),
-
-            # ── Tab Reservas ──
             rx.cond(
-                AdminState.tab_activa == "reservas",
+                State.tab_activa == "reservas",
                 rx.vstack(
                     rx.hstack(
                         rx.heading("Reservas recibidas", size="5", color=GRIS_OSCURO),
                         rx.spacer(),
                         rx.text(
-                            AdminState.reservas_lista.length().to_string() + " reservas en total",
+                            State.reservas_lista.length().to_string() + " reservas en total",
                             color=GRIS,
                             font_size="13px",
                         ),
@@ -985,69 +1145,64 @@ def admin():
                         margin_bottom="15px",
                     ),
                     rx.cond(
-                        AdminState.reservas_lista.length() == 0,
+                        State.reservas_lista.length() == 0,
                         rx.text("😴 No hay reservas todavía.", color=GRIS, font_size="14px"),
-                        rx.foreach(AdminState.reservas_lista, fila_reserva),
+                        rx.foreach(State.reservas_lista, fila_reserva),
                     ),
                     align="start",
                     width="100%",
                 ),
-
-                # ── Tab Tours ──
                 rx.vstack(
                     rx.heading("Tours activos", size="5", color=GRIS_OSCURO, margin_bottom="15px"),
-                    rx.foreach(AdminState.tours_admin, fila_tour_admin),
-
+                    rx.foreach(State.tours, fila_tour_admin),
                     rx.divider(margin_y="20px"),
-
-                    # Formulario agregar tour
                     rx.heading("➕ Agregar nuevo tour", size="5", color=GRIS_OSCURO, margin_bottom="12px"),
                     rx.box(
                         rx.text("Nombre del tour *", color=GRIS_OSCURO),
                         rx.input(
                             placeholder="Ej: Bahía de las Águilas 🌊",
-                            value=AdminState.nuevo_nombre,
-                            on_change=AdminState.set_nuevo_nombre,
+                            value=State.nuevo_nombre,
+                            on_change=State.set_nuevo_nombre,
                             width="100%", margin_bottom="10px",
                         ),
                         rx.text("Descripción corta *", color=GRIS_OSCURO),
                         rx.input(
                             placeholder="Descripción para la tarjeta...",
-                            value=AdminState.nuevo_descripcion,
-                            on_change=AdminState.set_nuevo_descripcion,
+                            value=State.nuevo_descripcion,
+                            on_change=State.set_nuevo_descripcion,
                             width="100%", margin_bottom="10px",
                         ),
                         rx.text("Precio *", color=GRIS_OSCURO),
                         rx.input(
                             placeholder="Ej: US$45 / persona",
-                            value=AdminState.nuevo_precio,
-                            on_change=AdminState.set_nuevo_precio,
+                            value=State.nuevo_precio,
+                            on_change=State.set_nuevo_precio,
                             width="100%", margin_bottom="10px",
                         ),
-                        rx.text("Nombre de la imagen", color=GRIS_OSCURO),
+                        rx.text("URL de la imagen", color=GRIS_OSCURO),
                         rx.input(
-                            placeholder="Ej: /bahia_aguilas.jpg",
-                            value=AdminState.nuevo_imagen,
-                            on_change=AdminState.set_nuevo_imagen,
+                            placeholder="https://... o /nombre_imagen.jpg",
+                            value=State.nuevo_imagen,
+                            on_change=State.set_nuevo_imagen,
                             width="100%", margin_bottom="10px",
                         ),
-                        rx.text("Ruta de la página", color=GRIS_OSCURO),
+                        rx.text("Ruta de la página (href)", color=GRIS_OSCURO),
                         rx.input(
                             placeholder="Ej: /descripcion/bahiaaguilas",
-                            value=AdminState.nuevo_href,
-                            on_change=AdminState.set_nuevo_href,
+                            value=State.nuevo_href,
+                            on_change=State.set_nuevo_href,
                             width="100%", margin_bottom="10px",
                         ),
                         rx.text("Tags de búsqueda (separados por coma)", color=GRIS_OSCURO),
                         rx.input(
                             placeholder="Ej: playa, sur, naturaleza, aventura",
-                            value=AdminState.nuevo_tags,
-                            on_change=AdminState.set_nuevo_tags,
+                            value=State.nuevo_tags,
+                            on_change=State.set_nuevo_tags,
                             width="100%", margin_bottom="15px",
                         ),
                         rx.button(
                             "➕ Agregar tour",
-                            on_click=AdminState.agregar_tour,
+                            on_click=State.agregar_tour,
                             background=VERDE,
                             color=BLANCO,
                             padding="8px 20px",
@@ -1064,7 +1219,6 @@ def admin():
                     width="100%",
                 ),
             ),
-
             padding="25px",
             max_width="900px",
             margin="0 auto",

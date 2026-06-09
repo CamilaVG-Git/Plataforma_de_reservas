@@ -110,7 +110,7 @@ Además, la plataforma incluye un **panel administrativo** que permite gestionar
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/tu-usuario/tureserva.git
+git clone https://github.com/tu-usuario/tureserva.git](https://github.com/CamilaVG-Git/Plataforma_de_reservas
 cd Plataforma_de_reservas
 ```
 
@@ -226,7 +226,7 @@ Esta API forma parte del proyecto **Plataforma de Reservas y Ofertas Turísticas
 
 ### 1. Clonar el repositorio
 ```bash
-git clone https://github.com/tu-usuario/tourism-platform.git
+git clone https://github.com/tu-usuario/tourism-platform.git](https://github.com/CamilaVG-Git/Plataforma_de_reservas
 cd tourism-platform/tourism-api
 ```
 
